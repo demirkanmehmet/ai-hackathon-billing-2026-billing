@@ -34,12 +34,9 @@ yanlış kurulur → çözüm süresi **saatler** tutar. İş kayıpları, müş
 **Kullanıcı akışı:**
 1. 3.000+ alarm JSON dosyası sisteme yüklenir
 2. Sistem alarmlara **korelasyon analizi** uygular (zaman, meta-data, ilişki modelleri)
-3. Claude AI, alarmları **anlamlı olaylara gruplandırır** ve her grup için:
-   - **Kök neden hipotezi** (neden böyle oldu?)
-   - **Etkilenen servisler** listesi
-   - **Önerilen ilk aksiyon** (ne yapılmalı?)
-4. İndirgeme sonucu: 3.000 alarm → **~15 olay kartı**
-5. Nöbetçi mühendis bu kartları okuyup **dakika içinde** harekete geçer
+3. Alarmların etiketlenmesi (nedensellik skorlamasının yapılması), temizlenmesi ve zenginleştirilmesi yapılır.
+4. İndirgeme sonucu: 3.000 alarm → **~5 olay kartı**
+5. Nöbetçi mühendis bu kartları okuyup hızlıca aksiyon alabilir.
 
 **AI'ın rolü:**
 - **Alarm Analizi:** Zaman, metrik, servis ilişkilerinden korelasyon modeli çıkarma
@@ -49,12 +46,16 @@ yanlış kurulur → çözüm süresi **saatler** tutar. İş kayıpları, müş
 
 ## 3. Neden Önemli / Fark Yaratan Yan
 
-**Klasik kural tabanlı yaklaşım:** "Eğer alarm X ve Y aynı dakikada gelirse, grup et" → Sabit,
-yanlış pozitif yüksek.
+**Klasik yaklaşımdan farkımız:** Sistem, gelen alarmların **nedensellik ilişkisini**, **etki şiddetini** ve **oluşum sırasını** analiz ederek
+dinamik bir korelasyon haritası oluşturur. Her alarm grubuna **istatistiksel skor** atanır:
+- Ne kadar sık bu alarmlar beraber görülüyor? (Korelasyon gücü)
+- Hangisi önce başladı, hangisi sonra? (Nedensellik sırası)
+- Kaç servis etkilendi? (Yayılım alanı)
 
-**AI yaklaşımı:** Veriye bakıp dinamik olarak öğreniyor. Her olaya **gerekçe sumuyor** —
-nöbetçi mühendis bu gerekçeyi okuyor ve **bağlamını anladığı için** güvenle hareket ediyor.
-**İnsanın kontrolü** hep başta: AI önerir, insan karar verir.
+Bu çok boyutlu analiz sayesinde, **binlerce alarm içinden gerçek kök nedenleri** ortaya çıkarabiliyoruz.
+Nöbetçi mühendis artık "tüm alarmlar eşit mi?" diye sormuyor — **çalışan sistem bunu onun için çözmüş**.
+
+**İnsanın kontrolü hep başta:** AI önerir, insan onaylar. Bir o kadar önemli.
 
 ---
 
