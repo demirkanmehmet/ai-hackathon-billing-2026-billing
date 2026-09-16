@@ -952,6 +952,118 @@ def kartlari_yaz(kartlar: list[dict], detay: bool) -> None:
                       f"{e['servis']:20s} {e['tip']:13s} {e['mesaj'][:44]}")
 
 
+# =========================================================================== #
+# PROGRAMATIK API — GUI ve testler bu fonksiyonu cagirir
+# =========================================================================== #
+
+def calistir(girdi: Path, paylasilan_kaynak: bool = False,
+             sessiz: bool = True, yaz: bool = False) -> dict:
+    """Tum boru hattini kosar ve her asamanin ciktisini tek sozlukte dondurur.
+
+    CLI (main) ekrana yazar, GUI bu fonksiyonu cagirir. Ikisi de AYNI kodu
+    kullanir; boylece arayuzde gorulen sonucla terminalde gorulen sonuc
+    ayrisamaz.
+
+    sessiz=True iken asama raporlari stdout'a basilmaz.
+    yaz=True iken data/pipeline/*.json dosyalari da uretilir.
+    """
+    import contextlib
+    import io
+
+    akis = io.StringIO()
+    baglam = contextlib.redirect_stdout(akis) if sessiz else contextlib.nullcontext()
+
+    with baglam:
+        alarmlar, envanter, grafik = asama1_yukle(girdi)
+        ham_sayi = len(alarmlar)
+        alarmlar, temizlik = asama2_temizle(alarmlar, envanter)
+        profil = asama3_etiketle(alarmlar, envanter, grafik)
+        gruplar = asama4_grupla(alarmlar)
+        olaylar = asama5_korele(alarmlar, grafik, paylasilan_kaynak, profil)
+        kartlar = asama6_kartlastir(olaylar, envanter)
+
+    atanan = sum(k["alarm_sayisi"] for k in kartlar)
+    elenenler = [a for a in alarmlar if not a["korelasyon"]["olay"]]
+    kod_ozeti = Counter(a["korelasyon"]["gerekce_kodu"] for a in elenenler)
+
+    sonuc = {
+        "ozet": {
+            "girdi": str(girdi),
+            "llm_kullanildi": False,
+            "paylasilan_kaynak_modu": paylasilan_kaynak,
+            "ham_alarm": ham_sayi,
+            "alarm_sayisi": len(alarmlar),
+            "tekrar_zinciri": len(gruplar),
+            "kart_sayisi": len(kartlar),
+            "atanan_alarm": atanan,
+            "elenen_alarm": len(alarmlar) - atanan,
+            "indirgeme_orani": round(len(kartlar) / len(alarmlar), 5),
+            "servis_sayisi": len({a["service"] for a in alarmlar}),
+            "host_sayisi": len({a["host"] for a in alarmlar}),
+            "pencere": [alarmlar[0]["timestamp"], alarmlar[-1]["timestamp"]],
+        },
+        "esikler": {
+            "AGIRLIK": AGIRLIK, "NEDENSELLIK_PUAN": NEDENSELLIK_PUAN,
+            "GURULTU_ESIGI": GURULTU_ESIGI, "CEKIRDEK_ESIGI": CEKIRDEK_ESIGI,
+            "ATAMA_ESIGI": ATAMA_ESIGI, "ZINCIR_BOSLUK_SN": ZINCIR_BOSLUK_SN,
+            "CEKIRDEK_BOSLUK_SN": CEKIRDEK_BOSLUK_SN,
+            "MARJ_GERI_SN": MARJ_GERI_SN, "MARJ_ILERI_SN": MARJ_ILERI_SN,
+        },
+        "asama1_yukle": {
+            "alarm": ham_sayi, "host": len(envanter),
+            "bagimlilik_kenari": len(grafik.kenarlar),
+            "grafik_servisi": len(grafik.servisler),
+            "kaynak_sistemler": dict(Counter(a["source_system"] for a in alarmlar)),
+            "severity_dagilimi": dict(sorted(Counter(a["severity"]
+                                                     for a in alarmlar).items())),
+        },
+        "asama2_temizle": temizlik,
+        "asama3_etiketle": {
+            "tip_profilleri": {k: {x: y for x, y in v.items() if not x.startswith("_")}
+                               for k, v in profil.items()},
+            "skor_histogrami": dict(sorted(
+                Counter(round(a["skor"]["ham"], 1) for a in alarmlar).items())),
+            "sinif_ozeti": {
+                s: {"alarm": n,
+                    "ort_skor": round(sum(a["skor"]["ham"] for a in alarmlar
+                                          if a["etiket"]["nedensellik"] == s) / n, 3)}
+                for s, n in Counter(a["etiket"]["nedensellik"] for a in alarmlar).items()},
+        },
+        "asama4_grupla": {
+            "zincir_sayisi": len(gruplar),
+            "temsilci": sum(1 for a in alarmlar if a["grup"]["temsilci_mi"]),
+            "boyut_dagilimi": dict(sorted(Counter(len(g["uyeler"])
+                                                  for g in gruplar).items())),
+            "en_uzun": sorted(
+                ({"grup_id": g["grup_id"], "anahtar": "|".join(str(x) for x in g["anahtar"]),
+                  "boyut": len(g["uyeler"]),
+                  "ilk": g["uyeler"][0]["timestamp"], "son": g["uyeler"][-1]["timestamp"]}
+                 for g in gruplar), key=lambda x: -x["boyut"])[:20],
+        },
+        "asama5_korele": {
+            "cekirdek_sayisi": len(olaylar),
+            "atanan": atanan, "elenen": len(alarmlar) - atanan,
+            "eleme_kodlari": {kod: {"alarm": n, "tanim": GEREKCE_TANIMLARI[kod]}
+                              for kod, n in kod_ozeti.most_common()},
+            "elenen_alarmlar": [
+                {"alarm_id": a["alarm_id"], "zaman": a["timestamp"][11:],
+                 "host": a["host"], "servis": a["service"], "tip": a["alarm_type"],
+                 "severity": a["severity"], "mesaj": a["message"],
+                 "sinyal_skoru": a["skor"]["sinyal"],
+                 **{k: v for k, v in a["korelasyon"].items() if k != "rol"}}
+                for a in elenenler],
+        },
+        "asama6_kartlar": kartlar,
+    }
+
+    if yaz:
+        CIKTI_DIZIN.mkdir(parents=True, exist_ok=True)
+        (CIKTI_DIZIN / "06_kartlar.json").write_text(
+            json.dumps({"ozet": sonuc["ozet"], "kartlar": kartlar},
+                       ensure_ascii=False, indent=2), encoding="utf-8")
+    return sonuc
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Alarm firtinasi uctan uca boru hatti.")
     ap.add_argument("--girdi", type=Path, default=VARSAYILAN_GIRDI)
