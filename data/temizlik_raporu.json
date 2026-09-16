@@ -1,0 +1,44 @@
+{
+  "girdi_kayit": 3000,
+  "cikti_kayit": 3000,
+  "kaldirilan_idler": [],
+  "tekrar_esigi_sn": 300,
+  "tekrar_grup_sayisi": 1866,
+  "temsilci_sayisi": 1866,
+  "duplike": {
+    "tekrarlanan_alarm_id": {
+      "sayi": 0,
+      "ornekler": []
+    },
+    "tam_kayit_duplikesi": {
+      "grup_sayisi": 0,
+      "fazla_kayit": 0,
+      "kaldirilacak_idler": []
+    },
+    "ayni_sn_host_tip": {
+      "anahtar_sayisi": 1,
+      "cok_kaynakli_olan": 1,
+      "gercek_supheli": 0,
+      "ornekler": [
+        {
+          "zaman": "2026-09-10T01:47:53",
+          "host": "ao-027-order",
+          "tip": "http_5xx",
+          "kaynaklar": [
+            "Zabbix",
+            "OBM"
+          ],
+          "mesajlar": [
+            "HTTP 5xx hata orani esigi asti, oran yuzde 74",
+            "HTTP 5xx hata orani esigi asti, oran yuzde 71"
+          ]
+        }
+      ]
+    }
+  },
+  "kalite": {
+    "toplam_bulgu": 0,
+    "bulgular": {},
+    "ornekler": {}
+  }
+}

@@ -590,7 +590,105 @@ def topolojik_kok(c: dict) -> dict | None:
     return None
 
 
-def asama5_korele(alarmlar: list[dict], grafik: Grafik, paylasilan: bool) -> list[dict]:
+GEREKCE_TANIMLARI = {
+    "BAKIM_SINIFI":
+        "Alarm tipi bakim/bilgi sinifinda. Bu tipler gozlem penceresine duzgun "
+        "yayilir, tum servislere dokunur ve dusuk siddetlidir; bir olayin parcasi "
+        "degil, surekli akan arka plandir.",
+    "DUSUK_SINYAL_SKORU":
+        "Alarmin sinyal skoru gurultu esiginin altinda kaldi. Tipi nedensel degil, "
+        "dustugu anda kendi tipinin taban oranina gore bir yogunlasma yok ve "
+        "siddeti dusuk.",
+    "PENCERE_DISI":
+        "Alarm hicbir olayin zaman penceresine dusmuyor. Tespit edilen olaylarin "
+        "hicbiriyle zamansal ortusmesi yok.",
+    "OLAYA_BAGLANAMADI":
+        "Alarm bir olayin zaman penceresine dusuyor ancak topolojik veya "
+        "bagimlilik baglantisi kurulamadi; ayni anda olmasi tek basina "
+        "nedensellik kanitlamaz.",
+}
+
+
+def gerekce_uret(a: dict, profil: dict) -> None:
+    """Gurultu kararini sayisal dayanagiyla birlikte insan okunur hale getirir.
+
+    Denetim gorunumunun cekirdegi. "Neden elendi?" sorusu tek kelimelik bir kodla
+    degil, karari ureten esik/skor karsilastirmasiyla cevaplanmalidir; aksi halde
+    eleme dogrulanabilir olmaz.
+    """
+    kor = a["korelasyon"]
+    tip = a["alarm_type"]
+    p = profil[tip]
+    skor = a["skor"]
+    kosullar, ceza = kor.pop("_kosullar", None) or ([], [])
+
+    if a["etiket"]["nedensellik"] == "bakim":
+        kod = "BAKIM_SINIFI"
+        ozet = (f"'{tip}' bakim sinifinda: {p['sayi']} alarmi 120 dakikaya duzgun "
+                f"yayilmis (CV {p['cv']}), {p['servis_yayilimi']}/27 servise dokunmus, "
+                f"ortalama siddet {p['ort_severity']}. Bu profil arka plan "
+                f"gurultusunun imzasidir.")
+    elif skor["sinyal"] < GURULTU_ESIGI:
+        kod = "DUSUK_SINYAL_SKORU"
+        ozet = (f"Sinyal skoru {skor['sinyal']}, gurultu esigi {GURULTU_ESIGI}. "
+                f"Esigin {round(GURULTU_ESIGI - skor['sinyal'], 3)} altinda.")
+    elif not kosullar:
+        kod = "PENCERE_DISI"
+        ozet = (f"{a['timestamp'][11:]} aninda acik bir olay penceresi yok; "
+                f"tespit edilen olaylarin hicbiriyle zamansal ortusme bulunmuyor.")
+    else:
+        kod = "OLAYA_BAGLANAMADI"
+        eksik = [k[0] for k in kosullar if not k[1]]
+        ozet = (f"En yakin olay {kor['en_yakin_olay']}: atama skoru "
+                f"{kor['atama_skoru']} < esik {ATAMA_ESIGI}. "
+                f"Karsilanmayan kosullar: {', '.join(eksik)}.")
+
+    # Skorun hangi bileseninin eksik kaldigi
+    azami = {"nedensellik": AGIRLIK["nedensellik"], "nadirlik": AGIRLIK["nadirlik"],
+             "siddet": AGIRLIK["siddet"]}
+    eksikler = sorted(((azami[b] - v, b, v) for b, v in skor["kirilim"].items()),
+                      reverse=True)
+    fark, en_eksik_ad, en_eksik_v = eksikler[0]
+
+    kor["gerekce_kodu"] = kod
+    kor["gerekce"] = ozet
+    kor["gerekce_tanimi"] = GEREKCE_TANIMLARI[kod]
+    kor["sinyal_skoru_detayi"] = {
+        "deger": skor["sinyal"],
+        "gurultu_esigi": GURULTU_ESIGI,
+        "esigi_gecti_mi": skor["sinyal"] >= GURULTU_ESIGI,
+        "kirilim": skor["kirilim"],
+        "en_zayif_bilesen": f"{en_eksik_ad} = {en_eksik_v} "
+                            f"(azami {azami[en_eksik_ad]}, {round(fark, 3)} eksik)",
+        "tekrar_sonumu": skor.get("tekrar_sonumu"),
+        "zincir_konumu": f"{a['grup']['sira']}/{a['grup']['boyut']}",
+    }
+    kor["tip_profili"] = {
+        "tip": tip, "nedensellik_sinifi": a["etiket"]["nedensellik"],
+        "toplam_alarm": p["sayi"], "zamansal_cv": p["cv"],
+        "servis_yayilimi": f"{p['servis_yayilimi']}/27",
+        "ortalama_severity": p["ort_severity"],
+    }
+    if kosullar:
+        kor["olay_yakinligi"] = {
+            "en_yakin_olay": kor["en_yakin_olay"],
+            "atama_skoru": kor["atama_skoru"],
+            "atama_esigi": ATAMA_ESIGI,
+            "eksik_puan": round(ATAMA_ESIGI - kor["atama_skoru"], 3),
+            "kosullar": [{"ad": ad, "saglandi": s, "puan": p_ if s else 0.0,
+                          "azami_puan": p_, "aciklama": acik}
+                         for ad, s, p_, acik in kosullar],
+            "cezalar": ceza,
+            "karari_degistirecek": next(
+                (f"'{ad}' kosulu saglansaydi (+{p_}) esik gecilirdi"
+                 for ad, s, p_, _ in kosullar
+                 if not s and kor["atama_skoru"] + p_ >= ATAMA_ESIGI),
+                "Tek bir kosul degisikligi esigi gectirmezdi"),
+        }
+
+
+def asama5_korele(alarmlar: list[dict], grafik: Grafik, paylasilan: bool,
+                  profil_ref: dict) -> list[dict]:
     bolum("ASAMA 5 — KORELE")
     cekirdekler = cekirdekleri_bul(alarmlar)
     print(f"  Cekirdek (sinyal >= {CEKIRDEK_ESIGI}) : {len(cekirdekler)}")
@@ -615,52 +713,81 @@ def asama5_korele(alarmlar: list[dict], grafik: Grafik, paylasilan: bool) -> lis
 
     for a in alarmlar:
         if any(a["alarm_id"] in o["_cekirdek"] for o in olaylar):
-            a["korelasyon"] = {"olay": next(o["id"] for o in olaylar
-                                            if a["alarm_id"] in o["_cekirdek"]),
-                               "rol": "cekirdek", "skor": 1.0, "gerekce": ["kok_sinyali"]}
+            a["korelasyon"] = {
+                "karar": "CEKIRDEK", "rol": "cekirdek",
+                "olay": next(o["id"] for o in olaylar if a["alarm_id"] in o["_cekirdek"]),
+                "atama_skoru": 1.0,
+                "gerekce": f"Kok sinyali: nedensel tip '{a['alarm_type']}' ve sinyal "
+                           f"skoru {a['skor']['sinyal']} >= cekirdek esigi {CEKIRDEK_ESIGI}",
+            }
             continue
         t = zaman(a)
-        en_iyi, en_skor, gerekce = None, 0.0, []
+        en_iyi, en_skor, en_kosul = None, 0.0, None
         for o in olaylar:
             c = o["cekirdek"]
             if not (c["bas"] - timedelta(seconds=MARJ_GERI_SN) <= t
                     <= c["son"] + timedelta(seconds=MARJ_ILERI_SN)):
                 continue
-            g, s = ["zaman_penceresi"], 0.30
-            if a["service"] in o["kapsam"]:
-                s += 0.30
-                g.append("kok_yayilim_alaninda")
             hedef = a["etiket"]["hedef_servis"]
-            if hedef and (hedef in o["kapsam"] or hedef == o["kok_servis"]):
-                s += 0.25
-                g.append(f"hedef={hedef}")
-            if o["topoloji"] and (a["etiket"]["veri_merkezi"], a["etiket"]["kabin"]) == (
-                    o["topoloji"]["dc"], o["topoloji"]["kabin"]):
-                s += 0.30
-                g.append("ayni_kabin")
-            if a["etiket"]["nedensellik"] == "semptom":
-                s += 0.10
-                g.append("semptom_tipi")
+            # Her kosul: (ad, saglandi_mi, puan, aciklama). Saglanmayanlar da
+            # kaydedilir; denetim gorunumunde "ne eksikti" sorusu bu listeden
+            # cevaplanir.
+            kosullar = [
+                ("zaman_penceresi", True, 0.30,
+                 f"Alarm, olayin {c['bas'].strftime('%H:%M:%S')}-"
+                 f"{c['son'].strftime('%H:%M:%S')} cekirdek penceresine "
+                 f"(-{MARJ_GERI_SN}sn/+{MARJ_ILERI_SN}sn marjla) dusuyor"),
+                ("kok_yayilim_alaninda", a["service"] in o["kapsam"], 0.30,
+                 f"Servis '{a['service']}' olayin etki alaninda"
+                 + ("" if a["service"] in o["kapsam"]
+                    else f" DEGIL (alan: {sorted(o['kapsam'])[:5]}...)")),
+                ("hedef_eslesmesi",
+                 bool(hedef) and (hedef in o["kapsam"] or hedef == o["kok_servis"]), 0.25,
+                 (f"Iliskisel alarmin hedefi '{hedef}' olay zincirinde"
+                  if hedef else "Alarm iliskisel degil, hedef servis icermiyor")),
+                ("ayni_kabin",
+                 bool(o["topoloji"]) and (a["etiket"]["veri_merkezi"],
+                                          a["etiket"]["kabin"]) == (o["topoloji"]["dc"],
+                                                                    o["topoloji"]["kabin"]),
+                 0.30,
+                 (f"Host {a['etiket']['veri_merkezi']}/{a['etiket']['kabin']} kabininde, "
+                  f"olayin koku {o['topoloji']['dc']}/{o['topoloji']['kabin']}"
+                  if o["topoloji"] else "Olayin topolojik koku yok, kabin kosulu gecersiz")),
+                ("semptom_tipi", a["etiket"]["nedensellik"] == "semptom", 0.10,
+                 f"Nedensellik sinifi '{a['etiket']['nedensellik']}'"),
+            ]
+            s = sum(p for _, saglandi, p, _ in kosullar if saglandi)
+            ceza = []
             if a["skor"]["sinyal"] < GURULTU_ESIGI:
                 s -= 0.25
-                g.append(f"dusuk_sinyal({a['skor']['sinyal']})")
+                ceza.append({
+                    "ad": "dusuk_sinyal_cezasi", "puan": -0.25,
+                    "aciklama": f"Sinyal skoru {a['skor']['sinyal']} < "
+                                f"gurultu esigi {GURULTU_ESIGI}"})
             if s > en_skor:
-                en_iyi, en_skor, gerekce = o, s, g
+                en_iyi, en_skor, en_kosul = o, s, (kosullar, ceza)
+
         if en_iyi and en_skor >= ATAMA_ESIGI:
             en_iyi["uyeler"].append(a)
-            a["korelasyon"] = {"olay": en_iyi["id"], "rol": "turev",
-                               "skor": round(en_skor, 2), "gerekce": gerekce}
+            a["korelasyon"] = {
+                "karar": "OLAYA_ATANDI", "olay": en_iyi["id"], "rol": "turev",
+                "atama_skoru": round(en_skor, 3), "atama_esigi": ATAMA_ESIGI,
+                "saglanan_kosullar": [k[0] for k in en_kosul[0] if k[1]],
+            }
         else:
             a["korelasyon"] = {
-                "olay": None, "rol": "gurultu", "skor": round(en_skor, 2),
-                "gerekce": [
-                    "BAKIM_SINIFI" if a["etiket"]["nedensellik"] == "bakim" else
-                    "DUSUK_SINYAL_SKORU" if a["skor"]["sinyal"] < GURULTU_ESIGI else
-                    "PENCERE_DISI" if not gerekce else "TOPOLOJI_ILISKISIZ"],
+                "karar": "GURULTU", "olay": None, "rol": "gurultu",
+                "atama_skoru": round(en_skor, 3), "atama_esigi": ATAMA_ESIGI,
+                "en_yakin_olay": en_iyi["id"] if en_iyi else None,
+                "_kosullar": en_kosul,
             }
 
+    for a in alarmlar:
+        if a["korelasyon"]["karar"] == "GURULTU":
+            gerekce_uret(a, profil_ref)
+
     atanan = sum(1 for a in alarmlar if a["korelasyon"]["olay"])
-    elenen = Counter(a["korelasyon"]["gerekce"][0]
+    elenen = Counter(a["korelasyon"]["gerekce_kodu"]
                      for a in alarmlar if not a["korelasyon"]["olay"])
     print(f"  Atanan   : {atanan} / {len(alarmlar)} (%{atanan / len(alarmlar) * 100:.1f})")
     print(f"  Elenen   : {len(alarmlar) - atanan} "
@@ -868,7 +995,7 @@ def main() -> None:
     if args.asama < 5:
         return
 
-    olaylar = asama5_korele(alarmlar, grafik, args.paylasilan_kaynak)
+    olaylar = asama5_korele(alarmlar, grafik, args.paylasilan_kaynak, profil)
     if args.asama < 6:
         return
 
@@ -894,16 +1021,30 @@ def main() -> None:
             "ATAMA_ESIGI": ATAMA_ESIGI,
         },
     }
-    (CIKTI_DIZIN / "05_denetim.json").write_text(json.dumps(
-        {"ozet": ozet, "tip_profilleri": {k: {x: y for x, y in v.items()
-                                              if not x.startswith("_")}
-                                          for k, v in profil.items()},
-         "elenen_alarmlar": [
-             {"alarm_id": a["alarm_id"], "zaman": a["timestamp"][11:],
-              "servis": a["service"], "tip": a["alarm_type"], "sev": a["severity"],
-              "sinyal_skoru": a["skor"]["sinyal"], "gerekce": a["korelasyon"]["gerekce"]}
-             for a in alarmlar if not a["korelasyon"]["olay"]]},
-        ensure_ascii=False, indent=2), encoding="utf-8")
+    elenenler = [a for a in alarmlar if not a["korelasyon"]["olay"]]
+    kod_ozeti = Counter(a["korelasyon"]["gerekce_kodu"] for a in elenenler)
+    (CIKTI_DIZIN / "05_denetim.json").write_text(json.dumps({
+        "ozet": ozet,
+        "eleme_gerekce_kodlari": {
+            kod: {"alarm_sayisi": kod_ozeti[kod], "tanim": GEREKCE_TANIMLARI[kod]}
+            for kod in kod_ozeti},
+        "esik_aciklamalari": {
+            "GURULTU_ESIGI": f"{GURULTU_ESIGI} — sinyal skoru bunun altinda kalan alarm "
+                             f"gurultu adayidir. Olculen dagilim: NEDEN sinifi min 0.816, "
+                             f"BAKIM sinifi max 0.543 — iki sinif ortusmuyor.",
+            "ATAMA_ESIGI": f"{ATAMA_ESIGI} — bir alarmin olaya turev olarak baglanmasi icin "
+                           f"gereken asgari kosul skoru.",
+            "agirliklar": AGIRLIK,
+        },
+        "tip_profilleri": {k: {x: y for x, y in v.items() if not x.startswith("_")}
+                           for k, v in profil.items()},
+        "elenen_alarmlar": [
+            {"alarm_id": a["alarm_id"], "zaman": a["timestamp"][11:],
+             "host": a["host"], "servis": a["service"], "tip": a["alarm_type"],
+             "severity": a["severity"], "mesaj": a["message"],
+             **{k: v for k, v in a["korelasyon"].items() if k != "rol"}}
+            for a in elenenler],
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
     (CIKTI_DIZIN / "06_kartlar.json").write_text(json.dumps(
         {"ozet": ozet, "kartlar": kartlar}, ensure_ascii=False, indent=2), encoding="utf-8")
 

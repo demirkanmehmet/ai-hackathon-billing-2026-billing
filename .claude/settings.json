@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(grep -n -E \"^\\\\.env|\\\\.env$|\\\\.env\\\\b\" .gitignore)"
+    ]
+  }
+}
