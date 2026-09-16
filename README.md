@@ -65,7 +65,6 @@ Nöbetçi mühendis artık "tüm alarmlar eşit mi?" diye sormuyor — **çalı�
 
 - Python 3.11+
 - `pip`
-- Anthropic Claude API anahtarı
 
 ### Kurulum
 
@@ -94,6 +93,12 @@ cp .env.example .env
 ### Çalıştırma
 
 #### 1. Alarm Korelasyon Pipeline'ı
+
+
+Pipeline.py çalıştırılarak user friendly şekilde sonuca gidilebilir.
+
+Pipeline.py içeriği:
+
 
 Alarm dosyasını işle ve olay kartları oluştur:
 
