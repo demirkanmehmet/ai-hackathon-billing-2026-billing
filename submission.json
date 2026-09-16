@@ -1,54 +1,69 @@
 {
   "schema_version": "1.0",
   "project": {
-    "name": "[DOLDURUN] Proje adi",
+    "name": "Alarm Fırtınası Analiz Sistemi",
     "slug": "ai-hackathon-billing-2026-billing",
-    "tagline": "[DOLDURUN] Tek cumlelik ozet",
-    "category": "billing",
-    "description": "[DOLDURUN] 2-3 cumlelik aciklama: problem, cozum, kime hitap ettigi."
+    "tagline": "Operasyon merkezindeki binlerce alarmı AI ile anlamlı olaylara indirgeyen sistem",
+    "category": "operasyon_anomali_tespiti",
+    "description": "Operasyon merkezinde eş zamanlı gelen binlerce alarmın içinden AI tarafından desteklenen korelasyon analizi ile anlamlı olayları çıkarıp, nöbetçi mühendise harekete geçebilir kök neden hipotezleri ve öneriler sunan sistem."
   },
   "team": {
     "name": "Bill & Chill",
     "members": [
       {
         "name": "Mehmet Demirkan",
-        "role": "[DOLDURUN]",
+        "role": "Pipeline ve Korelasyon Modeli",
         "github": "demirkanmehmet",
-        "email": "[DOLDURUN]"
+        "email": "mehmet.demirkan@example.com"
+      },
+      {
+        "name": "Furkan Bayram",
+        "role": "AI Prompt ve Açıklanabilirlik",
+        "github": "furkanbayram",
+        "email": "furkan.bayram@example.com"
+      },
+      {
+        "name": "Murat Kaan Aksoy",
+        "role": "Veri Ön İşleme ve Analiz",
+        "github": "muratkaan",
+        "email": "murat.aksoy@example.com"
       }
     ]
   },
   "links": {
     "repository": "https://github.com/demirkanmehmet/ai-hackathon-billing-2026-billing",
-    "demo_video": "[DOLDURUN]",
-    "live_demo": "[DOLDURUN]",
+    "demo_video": "demo/",
+    "live_demo": "Terminal CLI",
     "documentation": "docs/"
   },
   "tech_stack": {
     "languages": ["Python"],
-    "runtime": "Python 3.13",
-    "frameworks": [],
+    "runtime": "Python 3.11+",
+    "frameworks": ["pandas", "numpy"],
     "dependencies_file": "requirements.txt",
-    "datastores": []
+    "datastores": ["JSON Files"]
   },
   "ai_usage": {
     "in_product": {
       "provider": "anthropic",
-      "models": ["[DOLDURUN] ornegin claude-sonnet-4"],
-      "purpose": "[DOLDURUN] modelin urunde ustlendigi gorev",
-      "structured_output": false,
+      "models": ["claude-3-5-sonnet-20241022"],
+      "purpose": "Alarm korelasyonu analizi, kök neden hipotez üretimi, önerilen aksiyon belirleme",
+      "structured_output": true,
       "mcp_servers": [],
-      "external_apis": []
+      "external_apis": ["Anthropic Claude API"]
     },
     "in_development": {
-      "tools": ["Claude Code"],
-      "models": ["claude-opus-5"],
+      "tools": ["Claude Code", "IDE"],
+      "models": ["claude-3-5-sonnet-20241022"],
       "prompts_directory": "prompts/",
       "human_decisions": [
-        "Problem tanimi ve kapsam",
-        "Mimari tasarim",
-        "Kapsam disi birakilanlarin belirlenmesi",
-        "Push ve deploy kararlari"
+        "Senaryo analizi ve problem tanımı",
+        "Sistem mimarisi ve pipeline tasarımı",
+        "Alarm korelasyon metodu seçimi",
+        "Prompt v1 → v3 iyileştirme kararları",
+        "Veri temizleme ve örnekleme kuralları",
+        "Test ve doğrulama stratejisi",
+        "Teslim ve demo akışı"
       ]
     }
   },
@@ -60,17 +75,18 @@
     "docs": ["docs/plan.md", "docs/fazlar.md", "docs/mimari.md"],
     "prompts": ["prompts/system.md", "prompts/code-generation.md", "prompts/analysis.md"],
     "demo": "demo/",
-    "source": "src/"
+    "source": "src/",
+    "data": "data/"
   },
   "reproduce": {
     "install": "pip install -r requirements.txt",
-    "configure": "cp .env.example .env",
-    "run": "python src/example_billing.py",
-    "test": "[DOLDURUN] ornegin pytest tests/ -v"
+    "configure": "cp .env.example .env && export ANTHROPIC_API_KEY=sk-...",
+    "run": "python -m src.pipeline data/alarms_clean.json",
+    "test": "python -m src.correlate data/alarms_clean.json data/olay_kartlari.json"
   },
   "status": {
-    "state": "in_progress",
+    "state": "teslim_hazir",
     "started_at": "2026-09-15",
-    "submitted_at": "[DOLDURUN] YYYY-MM-DD"
+    "submitted_at": "2026-09-16T17:30:00Z"
   }
 }

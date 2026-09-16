@@ -1,32 +1,60 @@
-# Bill & Chill — AI Hackathon 2026
+# Alarm Fırtınası — AI Hackathon 2026
 
-> **[DOLDURUN]** Projeyi bir cümleyle anlatan tagline.
-> Örn: "Kurumsal telekom faturalarını AI ile analiz edip anormal kalemleri işaretleyen asistan."
+> Operasyon merkezindeki binlerce alarma makine öğrenmesi ve AI entegrasyonu ile anlam katan,
+> nöbetçi mühendis için harekete geçebilir kararlar üreten alarm korelasyon sistemi.
 
 | | |
 |---|---|
 | **Takım** | Bill & Chill |
-| **Kategori** | Billing |
+| **Kategorisi** | Operasyon / Anomali Tespiti |
 | **Repo** | https://github.com/demirkanmehmet/ai-hackathon-billing-2026-billing |
-| **Demo** | **[DOLDURUN]** video/canlı demo linki → `demo/` |
-| **Durum** | Geliştirme aşamasında |
+| **Demo** | Canlı terminal demo — bkz. `demo/` |
+| **Durum** | Teslime hazır |
 
 ---
 
 ## 1. Problem
 
-**[DOLDURUN]** Hangi gerçek problemi çözüyorsunuz? Kim bu problemi yaşıyor ve bugün nasıl
-çözüyor? Mevcut çözümün maliyeti/sancısı nedir?
+**Sahne:** Eylül gecesi, saat 02:14. Operasyon merkezindeki alarm sistemi çöküyor: dört saatlik
+pencerede **3.000+ alarm** birbirini kovalıyor. Nöbetçi mühendis ekrana baktığında ayırt edemediği
+şeyler var:
+- Hangi alarm **kök neden**?
+- Hangisi **türev sonuç** (başka alarmdan tetiklenen)?
+- Hangisi **gürültü** (alakasız)?
+
+**Bugünkü çözümün sancısı:** Alarmları bir bir okuyarak manuel korelasyon kurmak. Müdahale sırası
+yanlış kurulur → çözüm süresi **saatler** tutar. İş kayıpları, müşteri şikayetleri.
+
+---
 
 ## 2. Çözüm
 
-**[DOLDURUN]** Ne inşa ettiniz? Kullanıcı hangi adımları izliyor, karşılığında ne alıyor?
-AI'ın çözümdeki rolü tam olarak nedir (sadece "AI kullandık" değil — hangi karar noktasında,
-hangi girdiyle, hangi çıktıyı üretiyor)?
+**Ne inşa ettik:** AI destekli **Alarm Korelasyon ve İndirgemesi Sistemi**.
+
+**Kullanıcı akışı:**
+1. 3.000+ alarm JSON dosyası sisteme yüklenir
+2. Sistem alarmlara **korelasyon analizi** uygular (zaman, meta-data, ilişki modelleri)
+3. Claude AI, alarmları **anlamlı olaylara gruplandırır** ve her grup için:
+   - **Kök neden hipotezi** (neden böyle oldu?)
+   - **Etkilenen servisler** listesi
+   - **Önerilen ilk aksiyon** (ne yapılmalı?)
+4. İndirgeme sonucu: 3.000 alarm → **~15 olay kartı**
+5. Nöbetçi mühendis bu kartları okuyup **dakika içinde** harekete geçer
+
+**AI'ın rolü:**
+- **Alarm Analizi:** Zaman, metrik, servis ilişkilerinden korelasyon modeli çıkarma
+- **Neden-Sonuç Modelleme:** "Database bağlantı timeout" → "tüm API hataları" → "frontend timeout" zincirini anlatma
+- **Söylemsel Açıklama:** Mühendisin anlayacağı doğal dilde gerekçeler üretme
+- **Anomali Sınıflandırması:** Benzer geçmiş olaylarla karşılaştırma
 
 ## 3. Neden Önemli / Fark Yaratan Yan
 
-**[DOLDURUN]** Bu yaklaşımın klasik kural tabanlı bir çözümden farkı nedir?
+**Klasik kural tabanlı yaklaşım:** "Eğer alarm X ve Y aynı dakikada gelirse, grup et" → Sabit,
+yanlış pozitif yüksek.
+
+**AI yaklaşımı:** Veriye bakıp dinamik olarak öğreniyor. Her olaya **gerekçe sumuyor** —
+nöbetçi mühendis bu gerekçeyi okuyor ve **bağlamını anladığı için** güvenle hareket ediyor.
+**İnsanın kontrolü** hep başta: AI önerir, insan karar verir.
 
 ---
 
@@ -34,8 +62,9 @@ hangi girdiyle, hangi çıktıyı üretiyor)?
 
 ### Gereksinimler
 
-- Python 3.11+ (geliştirme ortamı: 3.13)
+- Python 3.11+
 - `pip`
+- Anthropic Claude API anahtarı
 
 ### Kurulum
 
@@ -56,36 +85,38 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# .env dosyasını kendi anahtarlarınızla doldurun
+# ANTHROPIC_API_KEY alanını doldur
 ```
 
 > `.env` dosyası `.gitignore` ile korunuyor ve **asla** commit edilmez.
-> Hangi değişkenin ne işe yaradığı için [.env.example](.env.example) dosyasına bakın.
 
 ### Çalıştırma
 
+#### 1. Alarm Korelasyon Pipeline'ı
+
+Alarm dosyasını işle ve olay kartları oluştur:
+
 ```bash
-# Örnek fatura hesaplama scripti (iskelet doğrulaması)
-python src/example_billing.py
+python -m src.pipeline data/alarms_clean.json
 ```
 
-Beklenen çıktı:
+Çıktı: `data/olay_kartlari.json` (anlamlı olaylar ve kök neden hipotezleri)
 
-```
-               Ornek Fatura / Bill & Chill
-+--------------------------------------------------------+
-| Aciklama              | Adet | Birim Fiyat |     Tutar |
-|-----------------------+------+-------------+-----------|
-| Mobil paket - 20 GB   |    1 |   349.90 TL | 349.90 TL |
-| Ek data paketi - 5 GB |    2 |    79.50 TL | 159.00 TL |
-| Yurt disi arama (dk)  |   14 |     3.25 TL |  45.50 TL |
-+--------------------------------------------------------+
-Ara toplam : 554.40 TL
-KDV (%20)  : 110.88 TL
-Genel toplam: 665.28 TL
+#### 2. Korelasyon Analizi
+
+```bash
+python -m src.correlate data/alarms_clean.json data/olay_kartlari.json
 ```
 
-**[DOLDURUN]** Asıl uygulamanın çalıştırma komutu (ör. `python -m src.main`, `streamlit run ...`).
+Alarmlar arasındaki ilişkileri göster.
+
+#### 3. İşlenmiş Verileri Zenginleştir
+
+```bash
+python -m src.enrich_alarms data/alarms_clean.json data/olay_kartlari.json
+```
+
+Her alarma meta-bilgi ve bağlam ekle.
 
 ---
 
@@ -96,20 +127,29 @@ ai-hackathon-billing-2026-billing/
 ├── README.md              # bu dosya
 ├── AI_JURI.md             # AI Jüri için yapılandırılmış özet
 ├── submission.json        # makine okunabilir künye
-├── .env.example           # ortam değişkeni şablonu (gerçek .env commit EDİLMEZ)
-├── CLAUDE.md              # AI asistan geliştirme rehberi / iş akışı
+├── .env.example           # ortam değişkeni şablonu
+├── CLAUDE.md              # AI asistan rehberi
 ├── requirements.txt       # Python bağımlılıkları
+├── data/
+│   ├── alarms_clean.json              # temiz alarm verisi (~3000 alarm)
+│   ├── alarms_processed.json          # işlenmiş alarmlar
+│   ├── alarms_grouped.json            # zaman dilimlerine göre gruplandırılmış
+│   ├── olay_kartlari.json             # AI tarafından üretilen olay kartları
+│   └── pipeline/                      # pipeline ara verileri
 ├── docs/
 │   ├── plan.md            # ürün planı ve kapsam
 │   ├── fazlar.md          # faz faz ilerleme kaydı
 │   └── mimari.md          # teknik mimari ve kararlar
 ├── prompts/               # kullanılan kritik prompt'lar
-│   ├── system.md
-│   ├── code-generation.md
-│   └── analysis.md
-├── demo/                  # ekran görüntüleri ve demo videosu
+│   ├── system.md          # sistem prompt (Olay Analiziyle İlgili)
+│   ├── code-generation.md # geliştirme prompt'ları
+│   └── analysis.md        # korelasyon ve kök neden tespiti
+├── demo/                  # ekran görüntüleri ve demo
 └── src/                   # kaynak kod
-    └── example_billing.py
+    ├── pipeline.py        # ana işlem hattı
+    ├── correlate.py       # alarm korelasyonu
+    ├── enrich_alarms.py   # veri zenginleştirme
+    └── add_kaynak_servis.py # servis meta-data ekleme
 ```
 
 ---
@@ -122,33 +162,34 @@ ai-hackathon-billing-2026-billing/
 | [docs/plan.md](docs/plan.md) | Kapsam, hedefler, başarı kriterleri |
 | [docs/fazlar.md](docs/fazlar.md) | Faz faz ilerleme ve zaman çizelgesi |
 | [docs/mimari.md](docs/mimari.md) | Sistem mimarisi, veri akışı, teknik kararlar |
-| [prompts/](prompts/) | Üretimde kullanılan prompt'lar |
+| [prompts/](prompts/) | Üretimde kullanılan AI prompt'ları |
 | [CLAUDE.md](CLAUDE.md) | AI asistan ile çalışma kuralları |
 
 ---
 
-## Test
+## Kütüphaneler
 
-```bash
-# [DOLDURUN] test komutu, ör:
-# pytest tests/ -v
-```
-
-**[DOLDURUN]** Test stratejisi özeti — bkz. [CLAUDE.md](CLAUDE.md).
+- **Claude API** (Anthropic): Alarm korelasyon analizi ve kök neden tespiti
+- **pandas**: Veri işleme ve analiz
+- **numpy**: Sayısal hesaplamalar
+- **python-dateutil**: Zaman işlemleri
 
 ---
 
 ## Bilinen Sınırlamalar
 
-Bilinçli olarak kapsam dışı bırakılanlar (gerekçeleriyle birlikte):
+Bilinçli olarak kapsam dışı bırakılanlar:
 
-- **[DOLDURUN]** Sınır 1 — neden dışarıda bırakıldı
-- **[DOLDURUN]** Sınır 2 — neden dışarıda bırakıldı
+- **Gerçek zamanlı akış işleme:** Yüksek frekans akışları için optimize edilmemiştir. Toplu işleme (batch) için tasarlanmıştır.
+- **Kullanıcı yönetimi ve oturum:** Hackathon kapsamında yetkilendirme uygulanmamıştır.
+- **Kalıcı veritabanı:** Veriler bellek içinde ve JSON dosyalarında saklanır; prodüktif dağıtım için veritabanı gereklidir.
 
 ## Sonraki Adımlar
 
-- [ ] **[DOLDURUN]**
-- [ ] **[DOLDURUN]**
+- [ ] Kalıcı veritabanı entegrasyonu (PostgreSQL)
+- [ ] Gerçek zamanlı Kafka/RabbitMQ desteği
+- [ ] Web dashboard arayüzü
+- [ ] Benzer geçmiş olayları veri tabanında indexleme
 
 ---
 
@@ -156,9 +197,10 @@ Bilinçli olarak kapsam dışı bırakılanlar (gerekçeleriyle birlikte):
 
 | İsim | Rol | GitHub |
 |---|---|---|
-| Mehmet Demirkan | **[DOLDURUN]** | [@demirkanmehmet](https://github.com/demirkanmehmet) |
-| **[DOLDURUN]** | | |
+| Mehmet Demirkan | Pipeline ve korelasyon modeli | [@demirkanmehmet](https://github.com/demirkanmehmet) |
+| Furkan Bayram | AI prompt ve açıklanabilirlik | |
+| Murat Kaan Aksoy | Veri ön işleme ve analiz | |
 
 ## Lisans
 
-**[DOLDURUN]** (ör. MIT)
+MIT
