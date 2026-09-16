@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "name": "[DOLDURUN] Proje adi",
+    "slug": "ai-hackathon-billing-2026-billing",
+    "tagline": "[DOLDURUN] Tek cumlelik ozet",
+    "category": "billing",
+    "description": "[DOLDURUN] 2-3 cumlelik aciklama: problem, cozum, kime hitap ettigi."
+  },
+  "team": {
+    "name": "Bill & Chill",
+    "members": [
+      {
+        "name": "Mehmet Demirkan",
+        "role": "[DOLDURUN]",
+        "github": "demirkanmehmet",
+        "email": "[DOLDURUN]"
+      }
+    ]
+  },
+  "links": {
+    "repository": "https://github.com/demirkanmehmet/ai-hackathon-billing-2026-billing",
+    "demo_video": "[DOLDURUN]",
+    "live_demo": "[DOLDURUN]",
+    "documentation": "docs/"
+  },
+  "tech_stack": {
+    "languages": ["Python"],
+    "runtime": "Python 3.13",
+    "frameworks": [],
+    "dependencies_file": "requirements.txt",
+    "datastores": []
+  },
+  "ai_usage": {
+    "in_product": {
+      "provider": "anthropic",
+      "models": ["[DOLDURUN] ornegin claude-sonnet-4"],
+      "purpose": "[DOLDURUN] modelin urunde ustlendigi gorev",
+      "structured_output": false,
+      "mcp_servers": [],
+      "external_apis": []
+    },
+    "in_development": {
+      "tools": ["Claude Code"],
+      "models": ["claude-opus-5"],
+      "prompts_directory": "prompts/",
+      "human_decisions": [
+        "Problem tanimi ve kapsam",
+        "Mimari tasarim",
+        "Kapsam disi birakilanlarin belirlenmesi",
+        "Push ve deploy kararlari"
+      ]
+    }
+  },
+  "artifacts": {
+    "readme": "README.md",
+    "ai_jury_summary": "AI_JURI.md",
+    "ai_instructions": "CLAUDE.md",
+    "env_template": ".env.example",
+    "docs": ["docs/plan.md", "docs/fazlar.md", "docs/mimari.md"],
+    "prompts": ["prompts/system.md", "prompts/code-generation.md", "prompts/analysis.md"],
+    "demo": "demo/",
+    "source": "src/"
+  },
+  "reproduce": {
+    "install": "pip install -r requirements.txt",
+    "configure": "cp .env.example .env",
+    "run": "python src/example_billing.py",
+    "test": "[DOLDURUN] ornegin pytest tests/ -v"
+  },
+  "status": {
+    "state": "in_progress",
+    "started_at": "2026-09-15",
+    "submitted_at": "[DOLDURUN] YYYY-MM-DD"
+  }
+}
